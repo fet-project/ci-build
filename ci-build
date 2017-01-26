@@ -1,0 +1,75 @@
+#!/bin/bash
+BASE_DIR=$(dirname "${0}")
+
+# Language (force it so getopt messages are always in english, as the script)
+LANG=en_EN
+
+# Get script name
+SCRIPT=$(basename ${0})
+
+print_incorrect_syntax() {
+  echo "Incorrect syntax (use -h for help)"
+}
+
+print_header() {
+  echo "============================================================"
+  echo " ${1}"
+  echo "============================================================"
+}
+
+help() {
+  echo ""
+  echo "Script to perform FET CI"
+  echo ""
+  echo "Syntax: "
+  echo ""
+  echo "${SCRIPT} <ARGUMENTS>"
+  echo ""
+  echo "Mandatory:"
+  echo " --fetdir=<path> To specify where FET source is"
+  echo ""
+  echo "Optional:"
+  echo " --fail-on-errors To exit inmediatly if there are errors"
+  echo "                  If not specified the script will continue"
+  echo "                  even when there are errors"
+  echo ""
+  echo "And at least one of:"
+  echo " --code-analysis=<additional_checks>"
+  echo "                  To perform code analysis. The <additional_checks>"
+  echo "                  value is equivalent to id at cppcheck's --enable"
+  echo "                  parameter"
+  echo " --build          To build FET"
+  exit 1
+}
+
+# read the options
+ARGS=$(getopt -o h --long help,fetdir:,fail-on-errors,code-analysis:,build -n "${SCRIPT}" -- "$@")
+if [ $? -ne 0 ];
+then
+  print_incorrect_syntax
+  exit 1
+fi
+eval set -- "${ARGS}"
+
+# extract options and their arguments into variables
+while true ; do
+  case "${1}" in
+    -h|--help)        help ; exit 1;;
+    --fetdir)         FETDIR=${2}; shift 2;;
+    --fail-on-errors) set -e; shift 1;;
+    --code-analysis)  CODE_ANALYSIS="print_header 'Performing code analysis'; cppcheck -q --enable=${2} src/engine src/interface"; shift 2;;
+    --build)          BUILD="print_header 'Building'; qmake && make"; shift 1;;
+    --)               shift ; break ;;
+    *)                print_incorrect_syntax; exit 1;;
+  esac
+done
+
+if [ -z ${FETDIR} ]; then
+  print_incorrect_syntax
+  exit 1
+else
+  cd ${FETDIR}
+fi
+
+eval ${CODE_ANALYSIS}
+eval ${BUILD}
